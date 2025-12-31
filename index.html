@@ -3,17 +3,39 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Real Vending Machine Decision</title>
+<title>5cm/s Vending Machine</title>
 <style>
-    /* --- 基本設定 --- */
+    /* --- フォント設定 --- */
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700&display=swap');
+
+    /* --- 基本変数（時間帯によってJSでclassを切り替える） --- */
     :root {
-        --machine-bg: #ecf0f1;
-        --machine-shadow: #bdc3c7;
-        --night-bg: #0b0c10;
-        --light-on: #fffacd; /* 蛍光灯の色 */
-        --btn-off: #e74c3c;
-        --btn-on: #ff7675;
-        --btn-light: #ffeb3b;
+        --font-main: 'Noto Sans JP', sans-serif;
+        --transition-speed: 0.5s;
+    }
+
+    /* === 朝のデザイン（爽やか・冷たい白） === */
+    body.morning {
+        --bg-color: #dbeafe; /* 薄い青空 */
+        --bg-gradient: linear-gradient(to bottom, #bfdbfe, #eff6ff);
+        --machine-body: #f1f2f6;
+        --machine-border: #94a3b8;
+        --glow-strength: 0px; /* 朝は光らない */
+        --shadow-color: rgba(0,0,0,0.15);
+        --light-opacity: 0.6; /* 昼間なので庫内の光は弱く見える */
+        --text-color: #334155;
+    }
+
+    /* === 夜のデザイン（秒速5センチメートル風・深い群青と強い光） === */
+    body.night {
+        --bg-color: #020617;
+        --bg-gradient: linear-gradient(to bottom, #0f172a, #1e1b4b); /* 星空のようなグラデ */
+        --machine-body: #cbd5e1; /* 夜の光を受けた白 */
+        --machine-border: #475569;
+        --glow-strength: 0 0 40px rgba(255, 255, 255, 0.15); /* 自販機自体が発光 */
+        --shadow-color: rgba(0,0,0,0.8);
+        --light-opacity: 1.0; /* 暗闇なので庫内の光が強く見える */
+        --text-color: #94a3b8;
     }
 
     * {
@@ -25,48 +47,64 @@
 
     body {
         margin: 0;
-        background-color: var(--night-bg);
-        font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+        background: var(--bg-gradient);
+        font-family: var(--font-main);
         height: 100vh;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
         overflow: hidden;
+        transition: background 1s ease;
+        color: var(--text-color);
+    }
+
+    /* 空気感の演出（ノイズや雪のような粒子） */
+    .atmosphere {
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        pointer-events: none;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+        z-index: 0;
     }
 
     /* --- 自販機本体 --- */
     .vending-machine {
-        width: 340px; /* スマホ幅に合わせつつリアルな比率 */
-        height: 600px;
-        background: linear-gradient(to right, #dfe6e9, #f5f6fa 40%, #dfe6e9);
-        border-radius: 10px;
-        border: 2px solid #636e72;
-        box-shadow: 0 0 50px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.2);
+        z-index: 10;
+        width: 320px;
+        height: 580px;
+        background: var(--machine-body);
+        border-radius: 8px;
+        border: 2px solid var(--machine-border);
+        box-shadow: 
+            var(--glow-strength), /* 夜の発光 */
+            0 20px 50px rgba(0,0,0,0.5), /* 落ち影 */
+            inset 0 0 30px rgba(0,0,0,0.1); /* 立体感 */
         display: flex;
         flex-direction: column;
         padding: 15px;
         position: relative;
+        transition: box-shadow 1s, background 1s, border-color 1s;
     }
 
-    /* 上部：商品ディスプレイ（アクリル板の中） */
+    /* 上部：ディスプレイ */
     .display-case {
-        background: #2d3436;
-        border-radius: 5px;
-        padding: 10px;
-        height: 280px;
+        background: #1e293b;
+        border-radius: 4px;
+        padding: 12px;
+        height: 260px;
         position: relative;
-        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
-        border: 4px solid #b2bec3;
+        border: 4px solid #94a3b8;
         overflow: hidden;
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
     }
 
-    /* 蛍光灯の映り込み演出 */
+    /* ガラスの反射 */
     .display-case::after {
         content: "";
         position: absolute;
         top: 0; left: 0; right: 0; bottom: 0;
-        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 40%);
+        background: linear-gradient(120deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.05) 100%);
         pointer-events: none;
         z-index: 5;
     }
@@ -78,93 +116,109 @@
         align-items: flex-end;
     }
 
-    /* 商品スロット */
     .product-slot {
         width: 45%;
-        height: 90%;
+        height: 100%;
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: flex-end;
         position: relative;
-        transition: transform 0.2s;
     }
 
-    /* 商品の背景（ライト） */
+    /* 背面ライト */
     .back-light {
         position: absolute;
-        top: 0; left: 0; width: 100%; height: 80%;
-        background: rgba(255, 255, 255, 0.1); /* 消灯時 */
-        border-radius: 5px;
+        bottom: 25px; /* ラベルの上 */
+        width: 90%;
+        height: 70%;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 4px;
         z-index: 1;
-        box-shadow: 0 0 5px rgba(0,0,0,0.5);
-        transition: background 0.1s, box-shadow 0.1s;
+        transition: opacity 0.2s;
+        opacity: 0.3;
     }
     
-    /* 点灯時のスタイル */
+    /* 点灯時（蛍光灯の白さ） */
     .product-slot.lit .back-light {
-        background: var(--light-on);
-        box-shadow: 0 0 20px var(--light-on);
+        background: #fff;
+        opacity: var(--light-opacity);
+        box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
     }
 
-    /* 商品画像（缶・ボトル） */
     .can-image {
         width: 80%;
-        height: 75%;
+        height: auto;
+        max-height: 160px;
         z-index: 2;
         object-fit: contain;
-        filter: brightness(0.7); /* 消灯時は暗く */
-        transition: filter 0.1s;
+        filter: brightness(0.6);
+        transition: filter 0.2s;
+        margin-bottom: 5px;
     }
     .product-slot.lit .can-image {
-        filter: brightness(1.1); /* 点灯時は明るく */
+        filter: brightness(1.05);
     }
 
-    /* 価格・商品名ラベル */
-    .price-tag {
+    /* ラベル類 */
+    .label-area {
         z-index: 2;
-        background: #e74c3c;
+        width: 100%;
+        text-align: center;
+        margin-bottom: 5px;
+    }
+    .price-tag {
+        display: inline-block;
+        background: #ef4444;
         color: white;
         padding: 2px 8px;
         font-size: 10px;
-        border-radius: 3px;
-        margin-top: 5px;
+        border-radius: 10px;
         font-weight: bold;
-        box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
     .product-name {
-        z-index: 2;
-        color: white;
+        color: #f1f5f9;
         font-size: 10px;
-        margin-top: 2px;
-        text-shadow: 1px 1px 2px black;
-        text-align: center;
+        margin-top: 4px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.8);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        width: 100%;
     }
 
-    /* 中段：ボタンエリア */
+    /* 操作パネル */
     .control-panel {
-        background: #b2bec3;
-        margin-top: 10px;
+        background: #cbd5e1;
+        margin-top: 15px;
         padding: 15px;
-        border-radius: 5px;
+        border-radius: 4px;
         display: flex;
         justify-content: space-around;
-        box-shadow: inset 0 1px 3px rgba(255,255,255,0.5), 0 2px 5px rgba(0,0,0,0.2);
+        box-shadow: inset 0 2px 5px rgba(255,255,255,0.5), 0 2px 3px rgba(0,0,0,0.1);
+        position: relative;
+    }
+    /* 硬貨投入口っぽいの */
+    .control-panel::before {
+        content: "";
+        position: absolute;
+        top: 50%; right: 10px;
+        transform: translateY(-50%);
+        width: 4px; height: 30px;
+        background: #334155;
+        border-radius: 2px;
+        box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
     }
 
-    /* 自販機の物理ボタン */
     .machine-btn {
-        width: 100px;
-        height: 60px;
-        background: linear-gradient(to bottom, #dcdde1, #b2bec3);
-        border-radius: 50px; /* 楕円形 */
-        border: 2px solid #636e72;
+        width: 90px;
+        height: 50px;
+        background: #e2e8f0;
+        border-radius: 25px;
+        border: 2px solid #94a3b8;
         position: relative;
         cursor: pointer;
-        box-shadow: 0 4px 0 #7f8c8d, 0 5px 10px rgba(0,0,0,0.3);
+        box-shadow: 0 4px 0 #64748b, 0 6px 5px rgba(0,0,0,0.2);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -172,132 +226,145 @@
         top: 0;
     }
 
-    /* ボタンの中のランプ部分 */
+    /* ボタンランプ（つめたい） */
     .btn-lamp {
-        width: 80%;
+        width: 70%;
         height: 60%;
-        border-radius: 40px;
-        background: #555; /* 消灯時 */
-        border: 2px solid #333;
+        border-radius: 20px;
+        background: #475569; /* 消灯時 */
         display: flex;
         justify-content: center;
         align-items: center;
-        color: rgba(255,255,255,0.2);
-        font-size: 12px;
+        color: rgba(255,255,255,0.1);
+        font-size: 10px;
         font-weight: bold;
-        box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+        letter-spacing: 1px;
     }
     .btn-lamp::after {
         content: "つめたい";
-        font-size: 0.8rem;
     }
 
-    /* ボタンが押された見た目 */
+    /* ボタン押し込み */
     .machine-btn:active, .machine-btn.pressed {
         top: 4px;
-        box-shadow: 0 0 0 #7f8c8d, inset 0 0 10px rgba(0,0,0,0.3);
+        box-shadow: 0 0 0 #64748b, inset 0 2px 5px rgba(0,0,0,0.2);
     }
 
-    /* ランプ点灯（ルーレット中・選択中） */
+    /* ランプ点灯（青いLED） */
     .machine-btn.lit .btn-lamp {
-        background: #3498db; /* 青い光 */
+        background: #3b82f6;
         color: #fff;
-        box-shadow: 0 0 10px #3498db, inset 0 0 5px rgba(255,255,255,0.5);
+        box-shadow: 0 0 10px #3b82f6, inset 0 0 5px rgba(255,255,255,0.5);
         text-shadow: 0 0 5px #fff;
     }
 
-    /* 下部：取り出し口 */
+    /* 取り出し口 */
     .dispenser-port {
         margin-top: auto;
-        height: 100px;
-        background: #2d3436;
-        border-radius: 5px;
-        border-top: 5px solid #636e72;
+        height: 90px;
+        background: #1e293b;
+        border-radius: 0 0 6px 6px;
+        border-top: 4px solid #64748b;
         position: relative;
         overflow: hidden;
-        box-shadow: inset 0 5px 15px rgba(0,0,0,0.8);
+        box-shadow: inset 0 10px 20px rgba(0,0,0,0.8);
     }
-
-    /* 取り出し口のフラップ（フタ） */
     .dispenser-flap {
-        width: 100%;
-        height: 80%;
-        background: rgba(255,255,255,0.05);
-        position: absolute;
-        bottom: 0;
-        transform-origin: top;
-        border-top: 1px solid rgba(255,255,255,0.2);
+        width: 100%; height: 100%;
+        background: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent);
+        position: absolute; bottom: 0;
     }
 
-    /* 落ちてくる商品 */
+    /* 落下アイテム */
     .dropped-item {
         position: absolute;
-        top: -150px; /* 見えない位置 */
+        top: -200px;
         left: 50%;
-        transform: translateX(-50%) rotate(10deg);
-        width: 100px;
-        transition: top 0.5s cubic-bezier(0.5, 1.5, 0.5, 1);
-        z-index: 10;
-        filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.5));
-    }
-    .dropped-item.drop {
-        top: 15px; /* 落ちた位置 */
-        transform: translateX(-50%) rotate(-85deg); /* コロンと寝転がる */
+        transform: translateX(-50%);
+        width: 140px; 
+        z-index: 20;
+        filter: drop-shadow(0 10px 10px rgba(0,0,0,0.5));
+        transition: transform 0.3s;
     }
     .dropped-item img {
-        width: 100%;
-        height: auto;
+        width: 100%; height: auto;
+    }
+    /* 落ちるアニメーション */
+    @keyframes dropBounce {
+        0% { top: -200px; transform: translateX(-50%) rotate(10deg); }
+        60% { top: 15px; transform: translateX(-50%) rotate(-10deg); }
+        80% { top: 10px; transform: translateX(-50%) rotate(5deg); }
+        100% { top: 15px; transform: translateX(-50%) rotate(-85deg); }
+    }
+    .dropped-item.drop {
+        animation: dropBounce 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
     }
 
-    /* 設定ボタン（隠し） */
+    /* 設定ボタン */
     .config-trigger {
         position: fixed;
-        top: 10px; right: 10px;
-        color: #333;
-        background: #fff;
-        border: none;
-        padding: 5px 10px;
-        opacity: 0.2;
-        border-radius: 4px;
-        font-size: 10px;
+        top: 15px; right: 15px;
+        color: var(--text-color);
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.3);
+        padding: 8px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        cursor: pointer;
+        backdrop-filter: blur(5px);
+        transition: opacity 0.3s;
+        z-index: 100;
     }
-    .config-trigger:hover { opacity: 1; }
+    .config-trigger:hover { background: rgba(255,255,255,0.4); }
 
     /* モーダル */
     .modal {
         display: none;
         position: fixed;
         top:0; left:0; width:100%; height:100%;
-        background: rgba(0,0,0,0.8);
-        z-index: 100;
-        color: #fff;
-        padding: 20px;
-        overflow-y: scroll;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(5px);
+        z-index: 200;
+        justify-content: center;
+        align-items: center;
     }
-    .modal.open { display: block; }
-    .input-row { margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px;}
-    input { width: 100%; margin-top: 5px; padding: 5px; }
-
+    .modal.open { display: flex; }
+    .modal-content {
+        background: #fff;
+        color: #333;
+        padding: 25px;
+        border-radius: 10px;
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    }
+    .input-row { margin-bottom: 20px; }
+    .input-row h3 { margin: 0 0 8px 0; font-size: 14px; border-left: 4px solid #3b82f6; padding-left: 8px;}
+    input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-bottom: 5px;}
+    
 </style>
 </head>
-<body>
-
-    <button class="config-trigger" onclick="toggleConfig()">🔧 設定</button>
+<body class="night"> <div class="atmosphere"></div>
+    <button class="config-trigger" onclick="toggleConfig()">Time / Item Config</button>
 
     <div class="vending-machine">
         <div class="display-case">
             <div class="shelf">
                 <div class="product-slot" id="slot-left">
                     <div class="back-light"></div>
-                    <img src="https://via.placeholder.com/150x250/333/FFF?text=COFFEE" class="can-image" id="img-left">
-                    <div class="price-tag">120</div>
-                    <div class="product-name" id="name-left">微糖コーヒー</div>
+                    <img src="https://placehold.co/100x200/222/FFF?text=BLACK" class="can-image" id="img-left">
+                    <div class="label-area">
+                        <div class="price-tag">120</div>
+                        <div class="product-name" id="name-left">微糖コーヒー</div>
+                    </div>
                 </div>
                 <div class="product-slot" id="slot-right">
                     <div class="back-light"></div>
-                    <img src="https://via.placeholder.com/150x250/333/FFF?text=TEA" class="can-image" id="img-right">
-                    <div class="price-tag">120</div>
-                    <div class="product-name" id="name-right">ミルクティー</div>
+                    <img src="https://placehold.co/100x200/7d5a5a/FFF?text=TEA" class="can-image" id="img-right">
+                    <div class="label-area">
+                        <div class="price-tag">120</div>
+                        <div class="product-name" id="name-right">ミルクティー</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -320,24 +387,49 @@
     </div>
 
     <div class="modal" id="config-modal">
-        <h2>商品設定</h2>
-        <div class="input-row">
-            <h3>左のボタン</h3>
-            <input type="text" id="conf-name-left" value="微糖コーヒー">
-            <input type="text" id="conf-url-left" placeholder="画像URL">
-            <input type="file" id="conf-file-left" accept="image/*">
+        <div class="modal-content">
+            <h2 style="margin-top:0;">設定</h2>
+            
+            <div class="input-row">
+                <h3>時間帯強制変更</h3>
+                <button onclick="setTimeTheme('morning')">朝にする</button>
+                <button onclick="setTimeTheme('night')">夜にする</button>
+                <button onclick="checkRealTime()">現在時刻に戻す</button>
+            </div>
+
+            <div class="input-row">
+                <h3>左の商品</h3>
+                <input type="text" id="conf-name-left" value="微糖コーヒー">
+                <input type="text" id="conf-url-left" placeholder="画像URL">
+            </div>
+            <div class="input-row">
+                <h3>右の商品</h3>
+                <input type="text" id="conf-name-right" value="ミルクティー">
+                <input type="text" id="conf-url-right" placeholder="画像URL">
+            </div>
+            <button onclick="saveConfig()" style="width:100%; padding:10px; background:#3b82f6; color:white; border:none; border-radius:5px;">保存して閉じる</button>
         </div>
-        <div class="input-row">
-            <h3>右のボタン</h3>
-            <input type="text" id="conf-name-right" value="ミルクティー">
-            <input type="text" id="conf-url-right" placeholder="画像URL">
-            <input type="file" id="conf-file-right" accept="image/*">
-        </div>
-        <button onclick="saveConfig()" style="padding:10px 20px; background:#e74c3c; color:white; border:none; border-radius:5px;">閉じる</button>
     </div>
 
 <script>
-    // 状態管理
+    // --- 1. 時間帯管理システム ---
+    function checkRealTime() {
+        const hour = new Date().getHours();
+        // 6:00 ～ 17:59 は朝モード、それ以外は夜モード
+        const isMorning = (hour >= 6 && hour < 18);
+        setTimeTheme(isMorning ? 'morning' : 'night');
+    }
+
+    function setTimeTheme(theme) {
+        document.body.classList.remove('morning', 'night');
+        document.body.classList.add(theme);
+    }
+
+    // 起動時に現在時刻チェック
+    checkRealTime();
+
+
+    // --- 2. 自販機ロジック ---
     const state = {
         leftPressed: false,
         rightPressed: false,
@@ -345,7 +437,6 @@
         timer: null
     };
 
-    // DOM要素
     const els = {
         left: {
             btn: document.getElementById('btn-left'),
@@ -363,129 +454,100 @@
         dropImg: document.getElementById('drop-img')
     };
 
-    // 初期化：商品は点灯状態にする（待機中）
-    els.left.slot.classList.add('lit');
-    els.right.slot.classList.add('lit');
-    els.left.btn.classList.add('lit');
-    els.right.btn.classList.add('lit');
+    // 初期状態: 両方販売中（点灯）
+    lightControl('all', true);
 
-    // タッチイベントの設定
+    // タッチイベント
     setupTouch(els.left.btn, 'left');
     setupTouch(els.right.btn, 'right');
 
     function setupTouch(element, side) {
+        // スマホでの同時押し対応
         element.addEventListener('touchstart', (e) => {
             e.preventDefault();
             handlePress(side);
         }, { passive: false });
+        
+        // PCクリック用
+        element.addEventListener('mousedown', (e) => {
+            handlePress(side);
+        });
     }
 
-    // ボタンロジック
     function handlePress(side) {
         if (state.processing) return;
 
-        // 押されたボタンを凹ませる
+        // ボタンの物理的な凹み
         els[side].btn.classList.add('pressed');
         if (side === 'left') state.leftPressed = true;
         if (side === 'right') state.rightPressed = true;
 
-        // 同時押し判定 (0.15秒の猶予)
+        // 同時押し判定ロジック (猶予0.1秒)
+        // 0.1秒待って、もう片方も押されていたら「同時押し」とみなす
         if (state.leftPressed && state.rightPressed) {
             clearTimeout(state.timer);
-            startRoulette(); // ★両方押し演出開始
+            decideWinner(); // ★新しい演出へ
         } else {
             state.timer = setTimeout(() => {
-                // 時間切れ＝単押し確定
+                // 時間切れ -> 単押し確定
                 if (state.leftPressed && !state.rightPressed) {
                     dispense('left');
                 } else if (!state.leftPressed && state.rightPressed) {
                     dispense('right');
                 }
-                resetButtons();
-            }, 150);
+                resetButtonPressVisuals();
+            }, 100); // 反応速度重視で短く
         }
     }
 
-    function resetButtons() {
+    function resetButtonPressVisuals() {
         state.leftPressed = false;
         state.rightPressed = false;
         els.left.btn.classList.remove('pressed');
         els.right.btn.classList.remove('pressed');
     }
 
-    // ★ルーレット演出（ここがワクワクポイント）
-    function startRoulette() {
+    // ★改良された同時押し演出（シンプル・リアル）
+    function decideWinner() {
         if(state.processing) return;
         state.processing = true;
-        resetButtons(); // 凹みは戻す
+        resetButtonPressVisuals();
 
-        // 一旦両方消灯
-        lightControl('all', false);
+        // 1. どちらにするか内部で即決
+        const winner = Math.random() < 0.5 ? 'left' : 'right';
+        const loser = winner === 'left' ? 'right' : 'left';
 
-        let count = 0;
-        let speed = 100; // 点滅速度
-        let current = 'left';
-
-        // 高速点滅ループ
-        const loop = () => {
-            // 交互に点灯
-            if (current === 'left') {
-                lightControl('left', true);
-                lightControl('right', false);
-                current = 'right';
-            } else {
-                lightControl('left', false);
-                lightControl('right', true);
-                current = 'left';
-            }
-
-            count++;
-            
-            // 20回点滅したら決定フェーズへ
-            if (count > 20) {
-                // ランダム決定
-                const winner = Math.random() < 0.5 ? 'left' : 'right';
-                finishRoulette(winner);
-            } else {
-                // 速度を少しずつ落とす（ドラムロール感）
-                if(count > 15) speed += 30;
-                setTimeout(loop, speed);
-            }
-        };
-
-        loop();
-    }
-
-    // ルーレット終了処理
-    function finishRoulette(winner) {
-        // 勝った方を強く点灯、負けた方は消灯
-        lightControl('left', false);
-        lightControl('right', false);
-        
-        // 少し溜めてから…
+        // 2. 「機械が認識した」一瞬のタメ (0.3秒)
+        // ここでルーレットはせず、静寂を作る
         setTimeout(() => {
-            lightControl(winner, true); // ピカーッ！
-            dropItem(els[winner].img.src);
+            // 3. 敗者側のライトが「フッ」と消える（これが決定の合図）
+            lightControl(loser, false);
+            
+            // 勝者側はついたまま
+            lightControl(winner, true);
+
+            // 4. 少し遅れて商品落下音（のタイミング）
+            setTimeout(() => {
+                dropItem(els[winner].img.src);
+            }, 400);
+
         }, 300);
     }
 
-    // 通常排出（単押し）
+    // 通常購入（単押し）
     function dispense(side) {
         if(state.processing) return;
         state.processing = true;
 
-        // 選んだ方だけ点灯を残す
-        lightControl('left', false);
-        lightControl('right', false);
-        lightControl(side, true);
-
-        // ガコン！
+        // 選ばなかった方を消灯
+        const other = side === 'left' ? 'right' : 'left';
+        lightControl(other, false);
+        
         setTimeout(() => {
             dropItem(els[side].img.src);
         }, 200);
     }
 
-    // 照明コントロール
     function lightControl(side, isOn) {
         if (side === 'all') {
             lightControl('left', isOn);
@@ -501,15 +563,12 @@
         }
     }
 
-    // 商品落下アニメーション
     function dropItem(src) {
         els.dropImg.src = src;
         
-        // アニメーションリセット
+        // アニメーション再開用ハック
         els.dropContainer.classList.remove('drop');
-        void els.dropContainer.offsetWidth; // リフロー
-        
-        // 落下開始
+        void els.dropContainer.offsetWidth; 
         els.dropContainer.classList.add('drop');
 
         // 復帰処理
@@ -517,10 +576,10 @@
             state.processing = false;
             // 待機状態に戻す（両方点灯）
             lightControl('all', true);
-        }, 2000);
+        }, 2500);
     }
 
-    // --- 設定モーダル関連 ---
+    // --- 設定モーダル ---
     function toggleConfig() {
         document.getElementById('config-modal').classList.toggle('open');
     }
@@ -532,17 +591,10 @@
     }
 
     function updateData(side) {
-        // 名前
-        els[side].name.innerText = document.getElementById(`conf-name-${side}`).value;
-        // 画像
-        const url = document.getElementById(`conf-url-${side}`).value;
-        const file = document.getElementById(`conf-file-${side}`).files[0];
-        if (url) els[side].img.src = url;
-        else if (file) {
-            const r = new FileReader();
-            r.onload = e => els[side].img.src = e.target.result;
-            r.readAsDataURL(file);
-        }
+        const nameVal = document.getElementById(`conf-name-${side}`).value;
+        const urlVal = document.getElementById(`conf-url-${side}`).value;
+        if(nameVal) els[side].name.innerText = nameVal;
+        if(urlVal) els[side].img.src = urlVal;
     }
 </script>
 </body>
