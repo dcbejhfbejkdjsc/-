@@ -3,487 +3,545 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>5cm/s Decision Maker</title>
+<title>Real Vending Machine Decision</title>
 <style>
-    /* -------------------------------------------
-       スマホ最適化スタイル
-    ------------------------------------------- */
+    /* --- 基本設定 --- */
+    :root {
+        --machine-bg: #ecf0f1;
+        --machine-shadow: #bdc3c7;
+        --night-bg: #0b0c10;
+        --light-on: #fffacd; /* 蛍光灯の色 */
+        --btn-off: #e74c3c;
+        --btn-on: #ff7675;
+        --btn-light: #ffeb3b;
+    }
+
     * {
         box-sizing: border-box;
-        -webkit-tap-highlight-color: transparent; /* タップ時の青枠を消す */
-        touch-action: manipulation; /* ダブルタップズーム等の無効化 */
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        user-select: none;
     }
 
     body {
         margin: 0;
-        padding: 0;
-        background-color: #1a1a2e; /* 夜の自販機っぽい暗めの色 */
-        color: #fff;
-        font-family: sans-serif;
+        background-color: var(--night-bg);
+        font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
         height: 100vh;
-        overflow: hidden; /* スクロール禁止 */
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-    }
-
-    /* ヘッダー */
-    header {
-        text-align: center;
-        padding: 15px;
-        background: rgba(0,0,0,0.3);
-    }
-    h1 {
-        margin: 0;
-        font-size: 1.2rem;
-        letter-spacing: 2px;
-        color: #e94560;
-        text-shadow: 0 0 10px #e94560;
-    }
-
-    /* メイン自販機エリア */
-    .machine-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
+        align-items: center;
         justify-content: center;
-        padding: 10px;
+        overflow: hidden;
+    }
+
+    /* --- 自販機本体 --- */
+    .vending-machine {
+        width: 340px; /* スマホ幅に合わせつつリアルな比率 */
+        height: 600px;
+        background: linear-gradient(to right, #dfe6e9, #f5f6fa 40%, #dfe6e9);
+        border-radius: 10px;
+        border: 2px solid #636e72;
+        box-shadow: 0 0 50px rgba(255, 255, 255, 0.1), inset 0 0 20px rgba(0,0,0,0.2);
+        display: flex;
+        flex-direction: column;
+        padding: 15px;
         position: relative;
     }
 
-    /* 商品棚（横並び） */
+    /* 上部：商品ディスプレイ（アクリル板の中） */
+    .display-case {
+        background: #2d3436;
+        border-radius: 5px;
+        padding: 10px;
+        height: 280px;
+        position: relative;
+        box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+        border: 4px solid #b2bec3;
+        overflow: hidden;
+    }
+
+    /* 蛍光灯の映り込み演出 */
+    .display-case::after {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 40%);
+        pointer-events: none;
+        z-index: 5;
+    }
+
     .shelf {
         display: flex;
         justify-content: space-around;
+        height: 100%;
         align-items: flex-end;
-        margin-bottom: 20px;
     }
 
-    .slot {
+    /* 商品スロット */
+    .product-slot {
         width: 45%;
+        height: 90%;
         display: flex;
         flex-direction: column;
         align-items: center;
-        opacity: 0.6; /* 待機時は少し暗く */
-        transition: opacity 0.3s, transform 0.2s;
-    }
-    
-    .slot.active {
-        opacity: 1;
-        transform: scale(1.05);
-        filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
-    }
-
-    /* 商品画像枠 */
-    .display-window {
-        width: 100%;
-        height: 180px; /* スマホで見やすいサイズ */
-        background: #fff;
-        border-radius: 8px;
-        overflow: hidden;
-        border: 4px solid #555;
         position: relative;
-        margin-bottom: 10px;
+        transition: transform 0.2s;
+    }
+
+    /* 商品の背景（ライト） */
+    .back-light {
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 80%;
+        background: rgba(255, 255, 255, 0.1); /* 消灯時 */
+        border-radius: 5px;
+        z-index: 1;
+        box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        transition: background 0.1s, box-shadow 0.1s;
     }
     
-    .display-window img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain; /* 画像全体が見えるように */
-        padding: 5px;
+    /* 点灯時のスタイル */
+    .product-slot.lit .back-light {
+        background: var(--light-on);
+        box-shadow: 0 0 20px var(--light-on);
     }
 
-    /* 価格表示っぽいラベル（品名） */
-    .label-tag {
-        background: #333;
-        color: #fff;
-        padding: 5px 10px;
-        border-radius: 20px;
-        font-size: 0.9rem;
+    /* 商品画像（缶・ボトル） */
+    .can-image {
+        width: 80%;
+        height: 75%;
+        z-index: 2;
+        object-fit: contain;
+        filter: brightness(0.7); /* 消灯時は暗く */
+        transition: filter 0.1s;
+    }
+    .product-slot.lit .can-image {
+        filter: brightness(1.1); /* 点灯時は明るく */
+    }
+
+    /* 価格・商品名ラベル */
+    .price-tag {
+        z-index: 2;
+        background: #e74c3c;
+        color: white;
+        padding: 2px 8px;
+        font-size: 10px;
+        border-radius: 3px;
+        margin-top: 5px;
+        font-weight: bold;
+        box-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+    }
+    .product-name {
+        z-index: 2;
+        color: white;
+        font-size: 10px;
+        margin-top: 2px;
+        text-shadow: 1px 1px 2px black;
         text-align: center;
-        min-width: 80%;
-        border: 2px solid #e94560;
-        box-shadow: 0 0 5px #e94560;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
     }
 
-    /* 物理ボタンエリア（画面下部） */
-    .button-panel {
+    /* 中段：ボタンエリア */
+    .control-panel {
+        background: #b2bec3;
+        margin-top: 10px;
+        padding: 15px;
+        border-radius: 5px;
         display: flex;
         justify-content: space-around;
-        padding: 20px;
-        background: #16213e;
-        border-top: 5px solid #0f3460;
-        padding-bottom: 40px; /* iPhoneの下部バー対策 */
+        box-shadow: inset 0 1px 3px rgba(255,255,255,0.5), 0 2px 5px rgba(0,0,0,0.2);
     }
 
-    /* 自販機の丸いボタン */
-    .push-btn {
+    /* 自販機の物理ボタン */
+    .machine-btn {
         width: 100px;
-        height: 100px;
-        border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #ff6b6b, #c0392b);
-        border: 4px solid #8e2a2a;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.3);
+        height: 60px;
+        background: linear-gradient(to bottom, #dcdde1, #b2bec3);
+        border-radius: 50px; /* 楕円形 */
+        border: 2px solid #636e72;
         position: relative;
         cursor: pointer;
+        box-shadow: 0 4px 0 #7f8c8d, 0 5px 10px rgba(0,0,0,0.3);
         display: flex;
         justify-content: center;
         align-items: center;
-        font-weight: bold;
-        color: rgba(255,255,255,0.8);
-        font-size: 1.2rem;
-        user-select: none; /* 長押し選択禁止 */
+        transition: top 0.1s, box-shadow 0.1s;
+        top: 0;
     }
 
-    /* 押した時の凹み */
-    .push-btn:active, .push-btn.pressed {
-        transform: scale(0.95);
-        box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5);
-        background: radial-gradient(circle at 30% 30%, #e74c3c, #a93226);
-    }
-    
-    /* ランダム抽選中の点滅 */
-    .push-btn.flash {
-        background: radial-gradient(circle at 30% 30%, #3498db, #2980b9);
-        box-shadow: 0 0 20px #3498db;
-        border-color: #2980b9;
-    }
-
-    /* 取り出し口 */
-    .dispenser-area {
-        position: absolute;
-        bottom: 150px; /* ボタンの上あたり */
-        left: 50%;
-        transform: translateX(-50%);
-        width: 200px;
-        height: 0;
-        z-index: 10;
+    /* ボタンの中のランプ部分 */
+    .btn-lamp {
+        width: 80%;
+        height: 60%;
+        border-radius: 40px;
+        background: #555; /* 消灯時 */
+        border: 2px solid #333;
         display: flex;
         justify-content: center;
+        align-items: center;
+        color: rgba(255,255,255,0.2);
+        font-size: 12px;
+        font-weight: bold;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
     }
-
-    /* 落ちてくるアニメーション */
-    @keyframes drop-bounce {
-        0% { transform: translateY(-300px) rotate(0deg) scale(0.5); opacity: 0; }
-        50% { transform: translateY(0) rotate(10deg) scale(1.1); opacity: 1; }
-        70% { transform: translateY(-20px) rotate(-5deg) scale(1.0); }
-        100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
-    }
-
-    .dropped-product {
-        display: none;
-        width: 120px;
-        height: 160px;
-        background: white;
-        border: 4px solid #fff;
-        box-shadow: 0 0 30px rgba(255,255,255,0.8);
-        border-radius: 10px;
-    }
-    .dropped-product img {
-        width: 100%; height: 100%; object-fit: cover;
-    }
-    .dropped-product.show {
-        display: block;
-        animation: drop-bounce 0.6s ease-out forwards;
-    }
-
-    /* 設定ボタン */
-    .settings-btn {
-        position: absolute;
-        top: 15px;
-        right: 15px;
-        background: none;
-        border: 1px solid #aaa;
-        color: #aaa;
-        padding: 5px 10px;
-        border-radius: 5px;
+    .btn-lamp::after {
+        content: "つめたい";
         font-size: 0.8rem;
     }
 
-    /* 設定モーダル */
+    /* ボタンが押された見た目 */
+    .machine-btn:active, .machine-btn.pressed {
+        top: 4px;
+        box-shadow: 0 0 0 #7f8c8d, inset 0 0 10px rgba(0,0,0,0.3);
+    }
+
+    /* ランプ点灯（ルーレット中・選択中） */
+    .machine-btn.lit .btn-lamp {
+        background: #3498db; /* 青い光 */
+        color: #fff;
+        box-shadow: 0 0 10px #3498db, inset 0 0 5px rgba(255,255,255,0.5);
+        text-shadow: 0 0 5px #fff;
+    }
+
+    /* 下部：取り出し口 */
+    .dispenser-port {
+        margin-top: auto;
+        height: 100px;
+        background: #2d3436;
+        border-radius: 5px;
+        border-top: 5px solid #636e72;
+        position: relative;
+        overflow: hidden;
+        box-shadow: inset 0 5px 15px rgba(0,0,0,0.8);
+    }
+
+    /* 取り出し口のフラップ（フタ） */
+    .dispenser-flap {
+        width: 100%;
+        height: 80%;
+        background: rgba(255,255,255,0.05);
+        position: absolute;
+        bottom: 0;
+        transform-origin: top;
+        border-top: 1px solid rgba(255,255,255,0.2);
+    }
+
+    /* 落ちてくる商品 */
+    .dropped-item {
+        position: absolute;
+        top: -150px; /* 見えない位置 */
+        left: 50%;
+        transform: translateX(-50%) rotate(10deg);
+        width: 100px;
+        transition: top 0.5s cubic-bezier(0.5, 1.5, 0.5, 1);
+        z-index: 10;
+        filter: drop-shadow(5px 5px 10px rgba(0,0,0,0.5));
+    }
+    .dropped-item.drop {
+        top: 15px; /* 落ちた位置 */
+        transform: translateX(-50%) rotate(-85deg); /* コロンと寝転がる */
+    }
+    .dropped-item img {
+        width: 100%;
+        height: auto;
+    }
+
+    /* 設定ボタン（隠し） */
+    .config-trigger {
+        position: fixed;
+        top: 10px; right: 10px;
+        color: #333;
+        background: #fff;
+        border: none;
+        padding: 5px 10px;
+        opacity: 0.2;
+        border-radius: 4px;
+        font-size: 10px;
+    }
+    .config-trigger:hover { opacity: 1; }
+
+    /* モーダル */
     .modal {
         display: none;
         position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9);
+        top:0; left:0; width:100%; height:100%;
+        background: rgba(0,0,0,0.8);
         z-index: 100;
-        overflow-y: auto;
+        color: #fff;
         padding: 20px;
+        overflow-y: scroll;
     }
     .modal.open { display: block; }
-    .modal-content {
-        background: #222;
-        padding: 20px;
-        border-radius: 10px;
-        color: #fff;
-    }
-    .close-modal {
-        display: block;
-        width: 100%;
-        padding: 10px;
-        margin-top: 20px;
-        background: #e94560;
-        border: none;
-        color: white;
-        font-size: 1rem;
-        border-radius: 5px;
-    }
-    .input-group { margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
-    .input-group label { display: block; margin-bottom: 5px; color: #aaa; }
-    .input-group input { width: 100%; padding: 8px; margin-bottom: 5px; box-sizing: border-box; }
+    .input-row { margin-bottom: 20px; border-bottom: 1px solid #555; padding-bottom: 10px;}
+    input { width: 100%; margin-top: 5px; padding: 5px; }
 
 </style>
 </head>
 <body>
 
-    <header>
-        <h1>DECISION MAKER</h1>
-        <button class="settings-btn" onclick="toggleSettings()">⚙ 設定</button>
-    </header>
+    <button class="config-trigger" onclick="toggleConfig()">🔧 設定</button>
 
-    <div class="machine-container">
-        <div class="shelf">
-            <div class="slot" id="slot-left">
-                <div class="display-window">
-                    <img id="img-left" src="https://via.placeholder.com/150x200/333/FFF?text=LEFT" alt="Left">
+    <div class="vending-machine">
+        <div class="display-case">
+            <div class="shelf">
+                <div class="product-slot" id="slot-left">
+                    <div class="back-light"></div>
+                    <img src="https://via.placeholder.com/150x250/333/FFF?text=COFFEE" class="can-image" id="img-left">
+                    <div class="price-tag">120</div>
+                    <div class="product-name" id="name-left">微糖コーヒー</div>
                 </div>
-                <div class="label-tag" id="name-display-left">カフェオレ</div>
-            </div>
-            
-            <div class="slot" id="slot-right">
-                <div class="display-window">
-                    <img id="img-right" src="https://via.placeholder.com/150x200/333/FFF?text=RIGHT" alt="Right">
+                <div class="product-slot" id="slot-right">
+                    <div class="back-light"></div>
+                    <img src="https://via.placeholder.com/150x250/333/FFF?text=TEA" class="can-image" id="img-right">
+                    <div class="price-tag">120</div>
+                    <div class="product-name" id="name-right">ミルクティー</div>
                 </div>
-                <div class="label-tag" id="name-display-right">ヨーグルト</div>
             </div>
         </div>
 
-        <div class="dispenser-area">
-            <div class="dropped-product" id="dropped-item">
-                <img id="dropped-img" src="" alt="">
+        <div class="control-panel">
+            <div class="machine-btn" id="btn-left">
+                <div class="btn-lamp"></div>
+            </div>
+            <div class="machine-btn" id="btn-right">
+                <div class="btn-lamp"></div>
+            </div>
+        </div>
+
+        <div class="dispenser-port">
+            <div class="dispenser-flap"></div>
+            <div class="dropped-item" id="drop-container">
+                <img src="" id="drop-img">
             </div>
         </div>
     </div>
 
-    <div class="button-panel">
-        <div class="push-btn" id="btn-left" data-side="left">PUSH</div>
-        <div class="push-btn" id="btn-right" data-side="right">PUSH</div>
-    </div>
-
-    <div class="modal" id="settings-modal">
-        <div class="modal-content">
-            <h2>商品設定</h2>
-            
-            <div class="input-group">
-                <h3>左の商品 (Left)</h3>
-                <label>商品名</label>
-                <input type="text" id="input-name-left" value="カフェオレ">
-                <label>画像URL</label>
-                <input type="text" id="input-url-left" placeholder="https://...">
-                <label>または画像アップロード</label>
-                <input type="file" id="input-file-left" accept="image/*">
-            </div>
-
-            <div class="input-group">
-                <h3>右の商品 (Right)</h3>
-                <label>商品名</label>
-                <input type="text" id="input-name-right" value="ヨーグルト">
-                <label>画像URL</label>
-                <input type="text" id="input-url-right" placeholder="https://...">
-                <label>または画像アップロード</label>
-                <input type="file" id="input-file-right" accept="image/*">
-            </div>
-
-            <button class="close-modal" onclick="saveAndCloseSettings()">決定して戻る</button>
+    <div class="modal" id="config-modal">
+        <h2>商品設定</h2>
+        <div class="input-row">
+            <h3>左のボタン</h3>
+            <input type="text" id="conf-name-left" value="微糖コーヒー">
+            <input type="text" id="conf-url-left" placeholder="画像URL">
+            <input type="file" id="conf-file-left" accept="image/*">
         </div>
+        <div class="input-row">
+            <h3>右のボタン</h3>
+            <input type="text" id="conf-name-right" value="ミルクティー">
+            <input type="text" id="conf-url-right" placeholder="画像URL">
+            <input type="file" id="conf-file-right" accept="image/*">
+        </div>
+        <button onclick="saveConfig()" style="padding:10px 20px; background:#e74c3c; color:white; border:none; border-radius:5px;">閉じる</button>
     </div>
 
 <script>
-    // --- 状態管理 ---
+    // 状態管理
     const state = {
         leftPressed: false,
         rightPressed: false,
-        isProcessing: false, // 処理中（連打防止）
-        doublePressTimer: null // 同時押し判定用タイマー
+        processing: false,
+        timer: null
     };
 
-    // --- 要素の取得 ---
-    const btnLeft = document.getElementById('btn-left');
-    const btnRight = document.getElementById('btn-right');
-    const slotLeft = document.getElementById('slot-left');
-    const slotRight = document.getElementById('slot-right');
-    const droppedItem = document.getElementById('dropped-item');
-    const droppedImg = document.getElementById('dropped-img');
+    // DOM要素
+    const els = {
+        left: {
+            btn: document.getElementById('btn-left'),
+            slot: document.getElementById('slot-left'),
+            img: document.getElementById('img-left'),
+            name: document.getElementById('name-left')
+        },
+        right: {
+            btn: document.getElementById('btn-right'),
+            slot: document.getElementById('slot-right'),
+            img: document.getElementById('img-right'),
+            name: document.getElementById('name-right')
+        },
+        dropContainer: document.getElementById('drop-container'),
+        dropImg: document.getElementById('drop-img')
+    };
 
-    // --- イベントリスナー設定 (スマホのタッチ対応) ---
-    // 左ボタン
-    btnLeft.addEventListener('touchstart', (e) => {
-        e.preventDefault(); // 拡大などを防ぐ
-        handlePress('left');
-    }, { passive: false });
+    // 初期化：商品は点灯状態にする（待機中）
+    els.left.slot.classList.add('lit');
+    els.right.slot.classList.add('lit');
+    els.left.btn.classList.add('lit');
+    els.right.btn.classList.add('lit');
 
-    // 右ボタン
-    btnRight.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        handlePress('right');
-    }, { passive: false });
+    // タッチイベントの設定
+    setupTouch(els.left.btn, 'left');
+    setupTouch(els.right.btn, 'right');
 
-    // 離した時の見た目戻し（機能には影響しない）
-    window.addEventListener('touchend', () => {
-        btnLeft.classList.remove('pressed');
-        btnRight.classList.remove('pressed');
-    });
+    function setupTouch(element, side) {
+        element.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            handlePress(side);
+        }, { passive: false });
+    }
 
-    // --- メインロジック ---
+    // ボタンロジック
     function handlePress(side) {
-        if (state.isProcessing) return;
+        if (state.processing) return;
 
-        // ボタンの見た目を凹ませる
-        document.getElementById(`btn-${side}`).classList.add('pressed');
-
-        // フラグを立てる
+        // 押されたボタンを凹ませる
+        els[side].btn.classList.add('pressed');
         if (side === 'left') state.leftPressed = true;
         if (side === 'right') state.rightPressed = true;
 
-        // 同時押し判定ロジック
-        // 最初のボタンが押されてから150ms以内に次のボタンが押されたら「同時」とみなす
-        
+        // 同時押し判定 (0.15秒の猶予)
         if (state.leftPressed && state.rightPressed) {
-            // 両方押された！ -> ランダムモード発動
-            clearTimeout(state.doublePressTimer); // シングル押し確定タイマーをキャンセル
-            startRandomSelection();
+            clearTimeout(state.timer);
+            startRoulette(); // ★両方押し演出開始
         } else {
-            // まだ片方だけ。少し待つ。
-            // 150ms待ってももう片方が押されなければ、シングル押しとして処理
-            state.doublePressTimer = setTimeout(() => {
-                // 時間切れ -> シングル押し実行
+            state.timer = setTimeout(() => {
+                // 時間切れ＝単押し確定
                 if (state.leftPressed && !state.rightPressed) {
-                    dispenseItem('left');
+                    dispense('left');
                 } else if (!state.leftPressed && state.rightPressed) {
-                    dispenseItem('right');
+                    dispense('right');
                 }
-                resetPressState();
-            }, 150); // ここの数値を調整すると「同時」のシビアさが変わります
+                resetButtons();
+            }, 150);
         }
     }
 
-    function resetPressState() {
+    function resetButtons() {
         state.leftPressed = false;
         state.rightPressed = false;
+        els.left.btn.classList.remove('pressed');
+        els.right.btn.classList.remove('pressed');
     }
 
-    // --- 商品排出（シングル） ---
-    function dispenseItem(side) {
-        if(state.isProcessing) return;
-        state.isProcessing = true;
+    // ★ルーレット演出（ここがワクワクポイント）
+    function startRoulette() {
+        if(state.processing) return;
+        state.processing = true;
+        resetButtons(); // 凹みは戻す
 
-        // 選ばれた方を光らせる
-        document.getElementById(`slot-${side}`).classList.add('active');
+        // 一旦両方消灯
+        lightControl('all', false);
+
+        let count = 0;
+        let speed = 100; // 点滅速度
+        let current = 'left';
+
+        // 高速点滅ループ
+        const loop = () => {
+            // 交互に点灯
+            if (current === 'left') {
+                lightControl('left', true);
+                lightControl('right', false);
+                current = 'right';
+            } else {
+                lightControl('left', false);
+                lightControl('right', true);
+                current = 'left';
+            }
+
+            count++;
+            
+            // 20回点滅したら決定フェーズへ
+            if (count > 20) {
+                // ランダム決定
+                const winner = Math.random() < 0.5 ? 'left' : 'right';
+                finishRoulette(winner);
+            } else {
+                // 速度を少しずつ落とす（ドラムロール感）
+                if(count > 15) speed += 30;
+                setTimeout(loop, speed);
+            }
+        };
+
+        loop();
+    }
+
+    // ルーレット終了処理
+    function finishRoulette(winner) {
+        // 勝った方を強く点灯、負けた方は消灯
+        lightControl('left', false);
+        lightControl('right', false);
         
-        // 排出アニメーション
-        const imgSrc = document.getElementById(`img-${side}`).src;
-        dropAnimation(imgSrc);
+        // 少し溜めてから…
+        setTimeout(() => {
+            lightControl(winner, true); // ピカーッ！
+            dropItem(els[winner].img.src);
+        }, 300);
+    }
+
+    // 通常排出（単押し）
+    function dispense(side) {
+        if(state.processing) return;
+        state.processing = true;
+
+        // 選んだ方だけ点灯を残す
+        lightControl('left', false);
+        lightControl('right', false);
+        lightControl(side, true);
+
+        // ガコン！
+        setTimeout(() => {
+            dropItem(els[side].img.src);
+        }, 200);
+    }
+
+    // 照明コントロール
+    function lightControl(side, isOn) {
+        if (side === 'all') {
+            lightControl('left', isOn);
+            lightControl('right', isOn);
+            return;
+        }
+        if (isOn) {
+            els[side].slot.classList.add('lit');
+            els[side].btn.classList.add('lit');
+        } else {
+            els[side].slot.classList.remove('lit');
+            els[side].btn.classList.remove('lit');
+        }
+    }
+
+    // 商品落下アニメーション
+    function dropItem(src) {
+        els.dropImg.src = src;
+        
+        // アニメーションリセット
+        els.dropContainer.classList.remove('drop');
+        void els.dropContainer.offsetWidth; // リフロー
+        
+        // 落下開始
+        els.dropContainer.classList.add('drop');
 
         // 復帰処理
         setTimeout(() => {
-            document.getElementById(`slot-${side}`).classList.remove('active');
-            state.isProcessing = false;
-        }, 1500);
-    }
-
-    // --- ランダム選出（同時押し演出） ---
-    function startRandomSelection() {
-        if(state.isProcessing) return;
-        state.isProcessing = true;
-        resetPressState(); // フラグはリセット
-
-        // 演出：ボタンが交互に光る、または点滅する
-        let count = 0;
-        const maxCount = 10; // 何回点滅するか
-        const intervalTime = 100; // 点滅間隔
-
-        const interval = setInterval(() => {
-            // 交互にスロットを光らせる演出
-            if (count % 2 === 0) {
-                slotLeft.classList.add('active');
-                slotRight.classList.remove('active');
-                btnLeft.classList.add('flash');
-                btnRight.classList.remove('flash');
-            } else {
-                slotLeft.classList.remove('active');
-                slotRight.classList.add('active');
-                btnLeft.classList.remove('flash');
-                btnRight.classList.add('flash');
-            }
-            count++;
-
-            // 演出終了
-            if (count >= maxCount) {
-                clearInterval(interval);
-                finalizeRandomChoice();
-            }
-        }, intervalTime);
-    }
-
-    function finalizeRandomChoice() {
-        // 完全に50%の確率で決定
-        const winner = Math.random() < 0.5 ? 'left' : 'right';
-
-        // 見た目の確定
-        slotLeft.classList.remove('active');
-        slotRight.classList.remove('active');
-        btnLeft.classList.remove('flash');
-        btnRight.classList.remove('flash');
-
-        document.getElementById(`slot-${winner}`).classList.add('active');
-        document.getElementById(`btn-${winner}`).classList.add('flash'); // 勝った方のボタンを光らせる
-
-        // 排出
-        const imgSrc = document.getElementById(`img-${winner}`).src;
-        dropAnimation(imgSrc);
-
-        setTimeout(() => {
-            document.getElementById(`slot-${winner}`).classList.remove('active');
-            document.getElementById(`btn-${winner}`).classList.remove('flash');
-            state.isProcessing = false;
+            state.processing = false;
+            // 待機状態に戻す（両方点灯）
+            lightControl('all', true);
         }, 2000);
     }
 
-    function dropAnimation(imgSrc) {
-        droppedImg.src = imgSrc;
-        droppedItem.classList.remove('show');
-        // リフローさせるためのハック
-        void droppedItem.offsetWidth; 
-        droppedItem.classList.add('show');
+    // --- 設定モーダル関連 ---
+    function toggleConfig() {
+        document.getElementById('config-modal').classList.toggle('open');
+    }
+    
+    function saveConfig() {
+        updateData('left');
+        updateData('right');
+        toggleConfig();
     }
 
-    // --- 設定画面まわり ---
-    function toggleSettings() {
-        document.getElementById('settings-modal').classList.toggle('open');
-    }
-
-    function saveAndCloseSettings() {
-        updateProduct('left');
-        updateProduct('right');
-        toggleSettings();
-    }
-
-    function updateProduct(side) {
-        // 名前更新
-        const nameVal = document.getElementById(`input-name-${side}`).value;
-        document.getElementById(`name-display-${side}`).innerText = nameVal;
-
-        // 画像更新 (URL優先、次にファイル)
-        const urlVal = document.getElementById(`input-url-${side}`).value;
-        const fileInput = document.getElementById(`input-file-${side}`);
-        const imgEl = document.getElementById(`img-${side}`);
-
-        if (urlVal) {
-            imgEl.src = urlVal;
-        } else if (fileInput.files && fileInput.files[0]) {
-            const reader = new FileReader();
-            reader.onload = (e) => { imgEl.src = e.target.result; };
-            reader.readAsDataURL(fileInput.files[0]);
+    function updateData(side) {
+        // 名前
+        els[side].name.innerText = document.getElementById(`conf-name-${side}`).value;
+        // 画像
+        const url = document.getElementById(`conf-url-${side}`).value;
+        const file = document.getElementById(`conf-file-${side}`).files[0];
+        if (url) els[side].img.src = url;
+        else if (file) {
+            const r = new FileReader();
+            r.onload = e => els[side].img.src = e.target.result;
+            r.readAsDataURL(file);
         }
     }
 </script>
