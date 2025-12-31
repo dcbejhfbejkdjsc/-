@@ -1,305 +1,491 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>迷ったら両方押せ！自販機メーカー</title>
-    <style>
-        /* 全体のスタイル */
-        body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #2c3e50;
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>5cm/s Decision Maker</title>
+<style>
+    /* -------------------------------------------
+       スマホ最適化スタイル
+    ------------------------------------------- */
+    * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent; /* タップ時の青枠を消す */
+        touch-action: manipulation; /* ダブルタップズーム等の無効化 */
+    }
 
-        h1 { margin-bottom: 10px; font-size: 1.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .subtitle { font-size: 0.9rem; color: #bdc3c7; margin-bottom: 30px; }
+    body {
+        margin: 0;
+        padding: 0;
+        background-color: #1a1a2e; /* 夜の自販機っぽい暗めの色 */
+        color: #fff;
+        font-family: sans-serif;
+        height: 100vh;
+        overflow: hidden; /* スクロール禁止 */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
 
-        /* 自販機本体 */
-        .vending-machine {
-            background: #ecf0f1;
-            padding: 20px;
-            border-radius: 15px;
-            border: 5px solid #95a5a6;
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.1), 10px 10px 30px rgba(0,0,0,0.5);
-            max-width: 600px;
-            width: 100%;
-        }
+    /* ヘッダー */
+    header {
+        text-align: center;
+        padding: 15px;
+        background: rgba(0,0,0,0.3);
+    }
+    h1 {
+        margin: 0;
+        font-size: 1.2rem;
+        letter-spacing: 2px;
+        color: #e94560;
+        text-shadow: 0 0 10px #e94560;
+    }
 
-        /* 商品陳列棚（2つの選択肢） */
-        .shelf {
-            display: flex;
-            justify-content: space-around;
-            background: #2c3e50;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            position: relative;
-        }
-        
-        /* 商品エリア */
-        .product-slot {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 45%;
-            background: rgba(255,255,255,0.1);
-            padding: 10px;
-            border-radius: 8px;
-        }
+    /* メイン自販機エリア */
+    .machine-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 10px;
+        position: relative;
+    }
 
-        /* 商品画像 */
-        .product-img-container {
-            width: 100px;
-            height: 140px;
-            background: #fff;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            border: 2px solid #7f8c8d;
-            position: relative;
-        }
+    /* 商品棚（横並び） */
+    .shelf {
+        display: flex;
+        justify-content: space-around;
+        align-items: flex-end;
+        margin-bottom: 20px;
+    }
 
-        .product-img-container img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+    .slot {
+        width: 45%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        opacity: 0.6; /* 待機時は少し暗く */
+        transition: opacity 0.3s, transform 0.2s;
+    }
+    
+    .slot.active {
+        opacity: 1;
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 15px rgba(255, 255, 255, 0.5));
+    }
 
-        /* 商品名入力エリア */
-        .product-name-input {
-            width: 90%;
-            padding: 5px;
-            margin-bottom: 5px;
-            border: none;
-            border-radius: 4px;
-            text-align: center;
-            font-weight: bold;
-        }
+    /* 商品画像枠 */
+    .display-window {
+        width: 100%;
+        height: 180px; /* スマホで見やすいサイズ */
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 4px solid #555;
+        position: relative;
+        margin-bottom: 10px;
+    }
+    
+    .display-window img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain; /* 画像全体が見えるように */
+        padding: 5px;
+    }
 
-        /* 設定エリア（画像アップロードなど） */
-        .settings-area {
-            font-size: 0.7rem;
-            color: #ccc;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            width: 100%;
-            margin-top: 5px;
-        }
-        .settings-area input {
-            width: 90%;
-            margin: 2px 0;
-        }
+    /* 価格表示っぽいラベル（品名） */
+    .label-tag {
+        background: #333;
+        color: #fff;
+        padding: 5px 10px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        text-align: center;
+        min-width: 80%;
+        border: 2px solid #e94560;
+        box-shadow: 0 0 5px #e94560;
+    }
 
-        /* 自販機のボタン */
-        .vm-button {
-            width: 80%;
-            height: 30px;
-            background: linear-gradient(to bottom, #e74c3c, #c0392b);
-            border-radius: 15px;
-            margin-top: 5px;
-            box-shadow: 0 4px 0 #96281b;
-            position: relative;
-        }
-        .vm-button::after {
-            content: "売切";
-            display: none; /* 通常は非表示 */
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 0.8rem;
-            color: white;
-        }
-        
-        /* ランダム選択時の「点灯」演出用クラス */
-        .vm-button.active {
-            background: linear-gradient(to bottom, #3498db, #2980b9);
-            box-shadow: 0 0 15px #3498db;
-        }
+    /* 物理ボタンエリア（画面下部） */
+    .button-panel {
+        display: flex;
+        justify-content: space-around;
+        padding: 20px;
+        background: #16213e;
+        border-top: 5px solid #0f3460;
+        padding-bottom: 40px; /* iPhoneの下部バー対策 */
+    }
 
-        /* 操作パネル（えいっ！ボタン） */
-        .control-panel {
-            text-align: center;
-            margin-top: 20px;
-        }
+    /* 自販機の丸いボタン */
+    .push-btn {
+        width: 100px;
+        height: 100px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 30% 30%, #ff6b6b, #c0392b);
+        border: 4px solid #8e2a2a;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5), inset 0 0 10px rgba(0,0,0,0.3);
+        position: relative;
+        cursor: pointer;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-weight: bold;
+        color: rgba(255,255,255,0.8);
+        font-size: 1.2rem;
+        user-select: none; /* 長押し選択禁止 */
+    }
 
-        .decide-btn {
-            background: linear-gradient(to bottom, #f1c40f, #f39c12);
-            border: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: #2c3e50;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 6px 0 #d35400, 0 10px 20px rgba(0,0,0,0.3);
-            transition: transform 0.1s, box-shadow 0.1s;
-        }
+    /* 押した時の凹み */
+    .push-btn:active, .push-btn.pressed {
+        transform: scale(0.95);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.5), inset 0 0 15px rgba(0,0,0,0.5);
+        background: radial-gradient(circle at 30% 30%, #e74c3c, #a93226);
+    }
+    
+    /* ランダム抽選中の点滅 */
+    .push-btn.flash {
+        background: radial-gradient(circle at 30% 30%, #3498db, #2980b9);
+        box-shadow: 0 0 20px #3498db;
+        border-color: #2980b9;
+    }
 
-        .decide-btn:active {
-            transform: translateY(6px);
-            box-shadow: 0 0 0 #d35400;
-        }
+    /* 取り出し口 */
+    .dispenser-area {
+        position: absolute;
+        bottom: 150px; /* ボタンの上あたり */
+        left: 50%;
+        transform: translateX(-50%);
+        width: 200px;
+        height: 0;
+        z-index: 10;
+        display: flex;
+        justify-content: center;
+    }
 
-        /* 取り出し口 */
-        .dispenser {
-            background: #222;
-            height: 120px;
-            margin-top: 20px;
-            border-radius: 10px;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
-            border-top: 5px solid #111;
-        }
+    /* 落ちてくるアニメーション */
+    @keyframes drop-bounce {
+        0% { transform: translateY(-300px) rotate(0deg) scale(0.5); opacity: 0; }
+        50% { transform: translateY(0) rotate(10deg) scale(1.1); opacity: 1; }
+        70% { transform: translateY(-20px) rotate(-5deg) scale(1.0); }
+        100% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    }
 
-        /* 出てきた商品のアニメーション */
-        .dropped-item {
-            width: 80px;
-            height: 110px;
-            background: #fff;
-            position: absolute;
-            top: -150px; /* 初期位置は上 */
-            border-radius: 5px;
-            transition: top 0.5s cubic-bezier(0.5, 1.5, 0.5, 1);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid #7f8c8d;
-        }
-        .dropped-item img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .dropped-item.drop {
-            top: 10px; /* 落ちてくる位置 */
-            transform: rotate(5deg);
-        }
-        
-        .result-text {
-            margin-top: 20px;
-            font-size: 1.2rem;
-            height: 30px;
-            color: #ecf0f1;
-            font-weight: bold;
-        }
+    .dropped-product {
+        display: none;
+        width: 120px;
+        height: 160px;
+        background: white;
+        border: 4px solid #fff;
+        box-shadow: 0 0 30px rgba(255,255,255,0.8);
+        border-radius: 10px;
+    }
+    .dropped-product img {
+        width: 100%; height: 100%; object-fit: cover;
+    }
+    .dropped-product.show {
+        display: block;
+        animation: drop-bounce 0.6s ease-out forwards;
+    }
 
-    </style>
+    /* 設定ボタン */
+    .settings-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        background: none;
+        border: 1px solid #aaa;
+        color: #aaa;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 0.8rem;
+    }
+
+    /* 設定モーダル */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 100;
+        overflow-y: auto;
+        padding: 20px;
+    }
+    .modal.open { display: block; }
+    .modal-content {
+        background: #222;
+        padding: 20px;
+        border-radius: 10px;
+        color: #fff;
+    }
+    .close-modal {
+        display: block;
+        width: 100%;
+        padding: 10px;
+        margin-top: 20px;
+        background: #e94560;
+        border: none;
+        color: white;
+        font-size: 1rem;
+        border-radius: 5px;
+    }
+    .input-group { margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+    .input-group label { display: block; margin-bottom: 5px; color: #aaa; }
+    .input-group input { width: 100%; padding: 8px; margin-bottom: 5px; box-sizing: border-box; }
+
+</style>
 </head>
 <body>
 
-    <h1>Two Buttons Decision Maker</h1>
-    <div class="subtitle">「秒速5センチメートル」のように、迷ったら運に任せよう。</div>
+    <header>
+        <h1>DECISION MAKER</h1>
+        <button class="settings-btn" onclick="toggleSettings()">⚙ 設定</button>
+    </header>
 
-    <div class="vending-machine">
+    <div class="machine-container">
         <div class="shelf">
-            <div class="product-slot" id="slot-a">
-                <input type="text" class="product-name-input" id="name-a" value="コーヒー">
-                <div class="product-img-container">
-                    <img id="img-display-a" src="https://via.placeholder.com/100x140?text=A" alt="Option A">
+            <div class="slot" id="slot-left">
+                <div class="display-window">
+                    <img id="img-left" src="https://via.placeholder.com/150x200/333/FFF?text=LEFT" alt="Left">
                 </div>
-                <div class="settings-area">
-                    <input type="text" id="url-a" placeholder="画像URLを貼る" onchange="updateImage('a', 'url')">
-                    <input type="file" id="file-a" accept="image/*" onchange="updateImage('a', 'file')">
-                </div>
-                <div class="vm-button" id="btn-a"></div>
+                <div class="label-tag" id="name-display-left">カフェオレ</div>
             </div>
-
-            <div class="product-slot" id="slot-b">
-                <input type="text" class="product-name-input" id="name-b" value="ヨーグルト">
-                <div class="product-img-container">
-                    <img id="img-display-b" src="https://via.placeholder.com/100x140?text=B" alt="Option B">
+            
+            <div class="slot" id="slot-right">
+                <div class="display-window">
+                    <img id="img-right" src="https://via.placeholder.com/150x200/333/FFF?text=RIGHT" alt="Right">
                 </div>
-                <div class="settings-area">
-                    <input type="text" id="url-b" placeholder="画像URLを貼る" onchange="updateImage('b', 'url')">
-                    <input type="file" id="file-b" accept="image/*" onchange="updateImage('b', 'file')">
-                </div>
-                <div class="vm-button" id="btn-b"></div>
+                <div class="label-tag" id="name-display-right">ヨーグルト</div>
             </div>
         </div>
 
-        <div class="dispenser">
-            <div id="dropped-item" class="dropped-item">
+        <div class="dispenser-area">
+            <div class="dropped-product" id="dropped-item">
                 <img id="dropped-img" src="" alt="">
             </div>
         </div>
     </div>
 
-    <div class="control-panel">
-        <button class="decide-btn" onclick="pressBoth()">迷った！（両方押す）</button>
+    <div class="button-panel">
+        <div class="push-btn" id="btn-left" data-side="left">PUSH</div>
+        <div class="push-btn" id="btn-right" data-side="right">PUSH</div>
     </div>
 
-    <div class="result-text" id="result-text"></div>
-
-    <script>
-        // 画像を更新する関数
-        function updateImage(side, type) {
-            const display = document.getElementById(`img-display-${side}`);
+    <div class="modal" id="settings-modal">
+        <div class="modal-content">
+            <h2>商品設定</h2>
             
-            if (type === 'url') {
-                const urlInput = document.getElementById(`url-${side}`);
-                if (urlInput.value) {
-                    display.src = urlInput.value;
+            <div class="input-group">
+                <h3>左の商品 (Left)</h3>
+                <label>商品名</label>
+                <input type="text" id="input-name-left" value="カフェオレ">
+                <label>画像URL</label>
+                <input type="text" id="input-url-left" placeholder="https://...">
+                <label>または画像アップロード</label>
+                <input type="file" id="input-file-left" accept="image/*">
+            </div>
+
+            <div class="input-group">
+                <h3>右の商品 (Right)</h3>
+                <label>商品名</label>
+                <input type="text" id="input-name-right" value="ヨーグルト">
+                <label>画像URL</label>
+                <input type="text" id="input-url-right" placeholder="https://...">
+                <label>または画像アップロード</label>
+                <input type="file" id="input-file-right" accept="image/*">
+            </div>
+
+            <button class="close-modal" onclick="saveAndCloseSettings()">決定して戻る</button>
+        </div>
+    </div>
+
+<script>
+    // --- 状態管理 ---
+    const state = {
+        leftPressed: false,
+        rightPressed: false,
+        isProcessing: false, // 処理中（連打防止）
+        doublePressTimer: null // 同時押し判定用タイマー
+    };
+
+    // --- 要素の取得 ---
+    const btnLeft = document.getElementById('btn-left');
+    const btnRight = document.getElementById('btn-right');
+    const slotLeft = document.getElementById('slot-left');
+    const slotRight = document.getElementById('slot-right');
+    const droppedItem = document.getElementById('dropped-item');
+    const droppedImg = document.getElementById('dropped-img');
+
+    // --- イベントリスナー設定 (スマホのタッチ対応) ---
+    // 左ボタン
+    btnLeft.addEventListener('touchstart', (e) => {
+        e.preventDefault(); // 拡大などを防ぐ
+        handlePress('left');
+    }, { passive: false });
+
+    // 右ボタン
+    btnRight.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        handlePress('right');
+    }, { passive: false });
+
+    // 離した時の見た目戻し（機能には影響しない）
+    window.addEventListener('touchend', () => {
+        btnLeft.classList.remove('pressed');
+        btnRight.classList.remove('pressed');
+    });
+
+    // --- メインロジック ---
+    function handlePress(side) {
+        if (state.isProcessing) return;
+
+        // ボタンの見た目を凹ませる
+        document.getElementById(`btn-${side}`).classList.add('pressed');
+
+        // フラグを立てる
+        if (side === 'left') state.leftPressed = true;
+        if (side === 'right') state.rightPressed = true;
+
+        // 同時押し判定ロジック
+        // 最初のボタンが押されてから150ms以内に次のボタンが押されたら「同時」とみなす
+        
+        if (state.leftPressed && state.rightPressed) {
+            // 両方押された！ -> ランダムモード発動
+            clearTimeout(state.doublePressTimer); // シングル押し確定タイマーをキャンセル
+            startRandomSelection();
+        } else {
+            // まだ片方だけ。少し待つ。
+            // 150ms待ってももう片方が押されなければ、シングル押しとして処理
+            state.doublePressTimer = setTimeout(() => {
+                // 時間切れ -> シングル押し実行
+                if (state.leftPressed && !state.rightPressed) {
+                    dispenseItem('left');
+                } else if (!state.leftPressed && state.rightPressed) {
+                    dispenseItem('right');
                 }
-            } else if (type === 'file') {
-                const fileInput = document.getElementById(`file-${side}`);
-                const file = fileInput.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        display.src = e.target.result;
-                    }
-                    reader.readAsDataURL(file);
-                }
+                resetPressState();
+            }, 150); // ここの数値を調整すると「同時」のシビアさが変わります
+        }
+    }
+
+    function resetPressState() {
+        state.leftPressed = false;
+        state.rightPressed = false;
+    }
+
+    // --- 商品排出（シングル） ---
+    function dispenseItem(side) {
+        if(state.isProcessing) return;
+        state.isProcessing = true;
+
+        // 選ばれた方を光らせる
+        document.getElementById(`slot-${side}`).classList.add('active');
+        
+        // 排出アニメーション
+        const imgSrc = document.getElementById(`img-${side}`).src;
+        dropAnimation(imgSrc);
+
+        // 復帰処理
+        setTimeout(() => {
+            document.getElementById(`slot-${side}`).classList.remove('active');
+            state.isProcessing = false;
+        }, 1500);
+    }
+
+    // --- ランダム選出（同時押し演出） ---
+    function startRandomSelection() {
+        if(state.isProcessing) return;
+        state.isProcessing = true;
+        resetPressState(); // フラグはリセット
+
+        // 演出：ボタンが交互に光る、または点滅する
+        let count = 0;
+        const maxCount = 10; // 何回点滅するか
+        const intervalTime = 100; // 点滅間隔
+
+        const interval = setInterval(() => {
+            // 交互にスロットを光らせる演出
+            if (count % 2 === 0) {
+                slotLeft.classList.add('active');
+                slotRight.classList.remove('active');
+                btnLeft.classList.add('flash');
+                btnRight.classList.remove('flash');
+            } else {
+                slotLeft.classList.remove('active');
+                slotRight.classList.add('active');
+                btnLeft.classList.remove('flash');
+                btnRight.classList.add('flash');
             }
+            count++;
+
+            // 演出終了
+            if (count >= maxCount) {
+                clearInterval(interval);
+                finalizeRandomChoice();
+            }
+        }, intervalTime);
+    }
+
+    function finalizeRandomChoice() {
+        // 完全に50%の確率で決定
+        const winner = Math.random() < 0.5 ? 'left' : 'right';
+
+        // 見た目の確定
+        slotLeft.classList.remove('active');
+        slotRight.classList.remove('active');
+        btnLeft.classList.remove('flash');
+        btnRight.classList.remove('flash');
+
+        document.getElementById(`slot-${winner}`).classList.add('active');
+        document.getElementById(`btn-${winner}`).classList.add('flash'); // 勝った方のボタンを光らせる
+
+        // 排出
+        const imgSrc = document.getElementById(`img-${winner}`).src;
+        dropAnimation(imgSrc);
+
+        setTimeout(() => {
+            document.getElementById(`slot-${winner}`).classList.remove('active');
+            document.getElementById(`btn-${winner}`).classList.remove('flash');
+            state.isProcessing = false;
+        }, 2000);
+    }
+
+    function dropAnimation(imgSrc) {
+        droppedImg.src = imgSrc;
+        droppedItem.classList.remove('show');
+        // リフローさせるためのハック
+        void droppedItem.offsetWidth; 
+        droppedItem.classList.add('show');
+    }
+
+    // --- 設定画面まわり ---
+    function toggleSettings() {
+        document.getElementById('settings-modal').classList.toggle('open');
+    }
+
+    function saveAndCloseSettings() {
+        updateProduct('left');
+        updateProduct('right');
+        toggleSettings();
+    }
+
+    function updateProduct(side) {
+        // 名前更新
+        const nameVal = document.getElementById(`input-name-${side}`).value;
+        document.getElementById(`name-display-${side}`).innerText = nameVal;
+
+        // 画像更新 (URL優先、次にファイル)
+        const urlVal = document.getElementById(`input-url-${side}`).value;
+        const fileInput = document.getElementById(`input-file-${side}`);
+        const imgEl = document.getElementById(`img-${side}`);
+
+        if (urlVal) {
+            imgEl.src = urlVal;
+        } else if (fileInput.files && fileInput.files[0]) {
+            const reader = new FileReader();
+            reader.onload = (e) => { imgEl.src = e.target.result; };
+            reader.readAsDataURL(fileInput.files[0]);
         }
-
-        // 両方押す（ランダム決定）ロジック
-        function pressBoth() {
-            // リセット
-            const item = document.getElementById('dropped-item');
-            const resultText = document.getElementById('result-text');
-            const btnA = document.getElementById('btn-a');
-            const btnB = document.getElementById('btn-b');
-            
-            item.classList.remove('drop');
-            btnA.classList.remove('active');
-            btnB.classList.remove('active');
-            resultText.innerText = "";
-
-            // 少し遅延させて演出
-            setTimeout(() => {
-                // 0か1のランダム (0: A, 1: B)
-                const choice = Math.random() < 0.5 ? 'a' : 'b';
-                const winnerName = document.getElementById(`name-${choice}`).value;
-                const winnerImgSrc = document.getElementById(`img-display-${choice}`).src;
-                
-                // 選ばれた方のボタンを光らせる
-                document.getElementById(`btn-${choice}`).classList.add('active');
-
-                // 取り出し口の画像をセット
-                document.getElementById('dropped-img').src = winnerImgSrc;
-
-                // ガチャン！と落とす
-                setTimeout(() => {
-                    item.classList.add('drop');
-                    resultText.innerText = `「${winnerName}」に決まりました！`;
-                }, 200);
-
-            }, 300); // 押した瞬間のタメ
-        }
-    </script>
+    }
+</script>
 </body>
 </html>
