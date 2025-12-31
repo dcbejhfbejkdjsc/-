@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷ったら両方押せ！自販機メーカー</title>
+    <style>
+        /* 全体のスタイル */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; font-size: 1.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .subtitle { font-size: 0.9rem; color: #bdc3c7; margin-bottom: 30px; }
+
+        /* 自販機本体 */
+        .vending-machine {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 15px;
+            border: 5px solid #95a5a6;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.1), 10px 10px 30px rgba(0,0,0,0.5);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        /* 商品陳列棚（2つの選択肢） */
+        .shelf {
+            display: flex;
+            justify-content: space-around;
+            background: #2c3e50;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        /* 商品エリア */
+        .product-slot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 45%;
+            background: rgba(255,255,255,0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        /* 商品画像 */
+        .product-img-container {
+            width: 100px;
+            height: 140px;
+            background: #fff;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border: 2px solid #7f8c8d;
+            position: relative;
+        }
+
+        .product-img-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* 商品名入力エリア */
+        .product-name-input {
+            width: 90%;
+            padding: 5px;
+            margin-bottom: 5px;
+            border: none;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* 設定エリア（画像アップロードなど） */
+        .settings-area {
+            font-size: 0.7rem;
+            color: #ccc;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-top: 5px;
+        }
+        .settings-area input {
+            width: 90%;
+            margin: 2px 0;
+        }
+
+        /* 自販機のボタン */
+        .vm-button {
+            width: 80%;
+            height: 30px;
+            background: linear-gradient(to bottom, #e74c3c, #c0392b);
+            border-radius: 15px;
+            margin-top: 5px;
+            box-shadow: 0 4px 0 #96281b;
+            position: relative;
+        }
+        .vm-button::after {
+            content: "売切";
+            display: none; /* 通常は非表示 */
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.8rem;
+            color: white;
+        }
+        
+        /* ランダム選択時の「点灯」演出用クラス */
+        .vm-button.active {
+            background: linear-gradient(to bottom, #3498db, #2980b9);
+            box-shadow: 0 0 15px #3498db;
+        }
+
+        /* 操作パネル（えいっ！ボタン） */
+        .control-panel {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .decide-btn {
+            background: linear-gradient(to bottom, #f1c40f, #f39c12);
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #d35400, 0 10px 20px rgba(0,0,0,0.3);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .decide-btn:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 #d35400;
+        }
+
+        /* 取り出し口 */
+        .dispenser {
+            background: #222;
+            height: 120px;
+            margin-top: 20px;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            border-top: 5px solid #111;
+        }
+
+        /* 出てきた商品のアニメーション */
+        .dropped-item {
+            width: 80px;
+            height: 110px;
+            background: #fff;
+            position: absolute;
+            top: -150px; /* 初期位置は上 */
+            border-radius: 5px;
+            transition: top 0.5s cubic-bezier(0.5, 1.5, 0.5, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid #7f8c8d;
+        }
+        .dropped-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .dropped-item.drop {
+            top: 10px; /* 落ちてくる位置 */
+            transform: rotate(5deg);
+        }
+        
+        .result-text {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            height: 30px;
+            color: #ecf0f1;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Two Buttons Decision Maker</h1>
+    <div class="subtitle">「秒速5センチメートル」のように、迷ったら運に任せよう。</div>
+
+    <div class="vending-machine">
+        <div class="shelf">
+            <div class="product-slot" id="slot-a">
+                <input type="text" class="product-name-input" id="name-a" value="コーヒー">
+                <div class="product-img-container">
+                    <img id="img-display-a" src="https://via.placeholder.com/100x140?text=A" alt="Option A">
+                </div>
+                <div class="settings-area">
+                    <input type="text" id="url-a" placeholder="画像URLを貼る" onchange="updateImage('a', 'url')">
+                    <input type="file" id="file-a" accept="image/*" onchange="updateImage('a', 'file')">
+                </div>
+                <div class="vm-button" id="btn-a"></div>
+            </div>
+
+            <div class="product-slot" id="slot-b">
+                <input type="text" class="product-name-input" id="name-b" value="ヨーグルト">
+                <div class="product-img-container">
+                    <img id="img-display-b" src="https://via.placeholder.com/100x140?text=B" alt="Option B">
+                </div>
+                <div class="settings-area">
+                    <input type="text" id="url-b" placeholder="画像URLを貼る" onchange="updateImage('b', 'url')">
+                    <input type="file" id="file-b" accept="image/*" onchange="updateImage('b', 'file')">
+                </div>
+                <div class="vm-button" id="btn-b"></div>
+            </div>
+        </div>
+
+        <div class="dispenser">
+            <div id="dropped-item" class="dropped-item">
+                <img id="dropped-img" src="" alt="">
+            </div>
+        </div>
+    </div>
+
+    <div class="control-panel">
+        <button class="decide-btn" onclick="pressBoth()">迷った！（両方押す）</button>
+    </div>
+
+    <div class="result-text" id="result-text"></div>
+
+    <script>
+        // 画像を更新する関数
+        function updateImage(side, type) {
+            const display = document.getElementById(`img-display-${side}`);
+            
+            if (type === 'url') {
+                const urlInput = document.getElementById(`url-${side}`);
+                if (urlInput.value) {
+                    display.src = urlInput.value;
+                }
+            } else if (type === 'file') {
+                const fileInput = document.getElementById(`file-${side}`);
+                const file = fileInput.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        display.src = e.target.result;
+                    }
+                    reader.readAsDataURL(file);
+                }
+            }
+        }
+
+        // 両方押す（ランダム決定）ロジック
+        function pressBoth() {
+            // リセット
+            const item = document.getElementById('dropped-item');
+            const resultText = document.getElementById('result-text');
+            const btnA = document.getElementById('btn-a');
+            const btnB = document.getElementById('btn-b');
+            
+            item.classList.remove('drop');
+            btnA.classList.remove('active');
+            btnB.classList.remove('active');
+            resultText.innerText = "";
+
+            // 少し遅延させて演出
+            setTimeout(() => {
+                // 0か1のランダム (0: A, 1: B)
+                const choice = Math.random() < 0.5 ? 'a' : 'b';
+                const winnerName = document.getElementById(`name-${choice}`).value;
+                const winnerImgSrc = document.getElementById(`img-display-${choice}`).src;
+                
+                // 選ばれた方のボタンを光らせる
+                document.getElementById(`btn-${choice}`).classList.add('active');
+
+                // 取り出し口の画像をセット
+                document.getElementById('dropped-img').src = winnerImgSrc;
+
+                // ガチャン！と落とす
+                setTimeout(() => {
+                    item.classList.add('drop');
+                    resultText.innerText = `「${winnerName}」に決まりました！`;
+                }, 200);
+
+            }, 300); // 押した瞬間のタメ
+        }
+    </script>
+</body>
+</html>
